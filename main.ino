@@ -24,9 +24,9 @@ BT MAVISI TX1
 
 // Motor Driver (Using PWM Pins)
 const int enB = 2; // Motor driver pin enableB, ANALOG controls speed
-const int in4 = 3; // Motor driver pin in1, DIGITAL controls direction with in3
-const int in3 = 4; // Motor driver pin in1, DIGITAL controls direction with in4
-const int in2 = 5; // Motor driver pin in1, DIGITAL  cotrols direcion with in1
+const int in4 = 3; // Motor driver pin in4, DIGITAL controls direction with in3
+const int in3 = 4; // Motor driver pin in3, DIGITAL controls direction with in4
+const int in2 = 5; // Motor driver pin in2, DIGITAL controls direcion with in1
 const int in1 = 6; // Motor driver pin in1, DIGITAL controls directions with in2
 const int enA = 7; // Motor driver pin enableA, ANALOG controls speed
 enum direction {
@@ -270,7 +270,7 @@ void loop()
       digitalWrite(ultrasound_right_trig, HIGH);
       delayMicroseconds(10);
       digitalWrite(ultrasound_right_trig, LOW);
-      ultrasound_right_duration = pulseIn(ultrasound_right_echo, HIGH); // LOW______HIGH----(t)------LOW____ This function returns the time t 
+      ultrasound_right_duration = pulseIn(ultrasound_right_echo, HIGH); 
       ultrasound_right_distance = ultrasound_right_duration / 29 / 2;
       if(ultrasound_right_duration == 0)
       {
@@ -282,7 +282,7 @@ void loop()
         if (ultrasound_right_distance > 1250) 
         { 
           ultrasound_right_distance = ULTRASOUND_DISTANCE_MIN; 
-        } // If the result is bugged set it to min (it is bugged at below 3cm)
+        }
         print(ultrasound_right_distance);
         println(" cm");
       }
@@ -293,7 +293,7 @@ void loop()
       digitalWrite(ultrasound_left_trig, HIGH);
       delayMicroseconds(10);
       digitalWrite(ultrasound_left_trig, LOW);
-      ultrasound_left_duration = pulseIn(ultrasound_left_echo, HIGH); // LOW______HIGH----(t)------LOW____ This function returns the time t 
+      ultrasound_left_duration = pulseIn(ultrasound_left_echo, HIGH);
       ultrasound_left_distance = ultrasound_left_duration / 29 / 2;
       if(ultrasound_left_duration == 0)
       {
@@ -305,7 +305,7 @@ void loop()
         if (ultrasound_left_distance > 1250) 
         { 
           ultrasound_left_distance = ULTRASOUND_DISTANCE_MIN; 
-        } // If the result is bugged set it to min (it is bugged at below 3cm)
+        }
         print(ultrasound_left_distance);
         println(" cm");
       }
@@ -315,12 +315,12 @@ void loop()
     if (linefollower_enabled) 
     {
       infrared_values[0] = analogRead(irA1); // RIGHT
-      infrared_values[1] = analogRead(irA2);
-      infrared_values[2] = analogRead(irA3);
-      infrared_values[3] = analogRead(irA4);
-      infrared_values[4] = analogRead(irA5);
-      infrared_values[5] = analogRead(irA6);
-      infrared_values[6] = analogRead(irA7);
+      infrared_values[1] = analogRead(irA2); // RIGHT
+      infrared_values[2] = analogRead(irA3); // RIGHT
+      infrared_values[3] = analogRead(irA4); // MIDDLE
+      infrared_values[4] = analogRead(irA5); // MIDDLE
+      infrared_values[5] = analogRead(irA6); // LEFT
+      infrared_values[6] = analogRead(irA7); // LEFT
       infrared_values[7] = analogRead(irA8); // LEFT
       for (int i = 7; i>=0; i--) 
       {
@@ -335,13 +335,13 @@ void loop()
       }   
       
       if (line_detected[0] && line_detected[1] && line_detected[2]) {
-        left_detected = true;
+        right_detected = true;
       }
       if (line_detected[3] && line_detected[4]) {
         middle_detected = true;
       }
       if (line_detected[5] && line_detected[6] && line_detected[7]) {
-        right_detected = true;
+        left_detected = true;
       }
 
       if (!left_detected && !middle_detected && !right_detected) {
