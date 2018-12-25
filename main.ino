@@ -1,7 +1,7 @@
 /*
 Author: Erhan Tezcan
-Date: 25.11.2018
-Title: Multidisciplinary Project - Arudino Code v0.2
+Date: 20.12.2018
+Title: Multidisciplinary Project - Arudino Code v0.3
 
 KABLO RENK LEJAND
 KIRMIZI:  VCC 5V
