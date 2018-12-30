@@ -1,7 +1,7 @@
-/*
+ /*
 Author: Erhan Tezcan
-Date: 20.12.2018
-Title: Multidisciplinary Project - Arudino Code v0.3
+Date: 25.11.2018
+Title: Multidisciplinary Project - Arudino Code v0.2
 
 KABLO RENK LEJAND
 KIRMIZI:  VCC 5V
@@ -13,21 +13,23 @@ BT MAVISI TX1
 */
 #include <Servo.h>
 
-#define DEBUG 1 // 0 ise Bluetooth Serial haberlesme 1 ise Bilgisayar Serial haberlesmesi
+#define DEBUG 1
+// 0 ise Bluetooth Serial haberlesme 1 ise Bilgisayar Serial haberlesmesi
+
 
 #define INFRARED_REFERENCE 200 // Reference analog value from the infrared sensor, below means black, above means not black.
 
 #define ULTRASOUND_DISTANCE_MIN 2 // In case ultrasound result is mistaken (e.g. greater than 3000cm) we assign it to min (because that is usually when it is mistaken)
 #define ULTRASOUND_DISTANCE_CONDITION 5 // The cm value for the robot to pick up the box. Robot stays this much cm away from the box in front of it.
 
-#define DELAY_MS 50 // Delay for the loop() function in milliseconds
+#define DELAY_MS 40 // Delay for the loop() function in milliseconds
 
 // Motor Driver (Using PWM Pins)
 const int enB = 2; // Motor driver pin enableB, ANALOG controls speed
-const int in4 = 3; // Motor driver pin in4, DIGITAL controls direction with in3
-const int in3 = 4; // Motor driver pin in3, DIGITAL controls direction with in4
-const int in2 = 5; // Motor driver pin in2, DIGITAL controls direcion with in1
-const int in1 = 6; // Motor driver pin in1, DIGITAL controls directions with in2
+const int in4 = 3; // Motor driver pin in1, DIGITAL controls direction with in3
+const int in3 = 4; // Motor driver pin in2, DIGITAL controls direction with in4
+const int in2 = 5; // Motor driver pin in3, DIGITAL  cotrols direcion with in1
+const int in1 = 6; // Motor driver pin in4, DIGITAL controls directions with in2
 const int enA = 7; // Motor driver pin enableA, ANALOG controls speed
 enum direction {
   forward,
@@ -95,12 +97,14 @@ const int arm_left_pin = 8;
 const int arm_right_pin = 9;
 const int hand_right_pin = 10;
 const int hand_left_pin = 11;
+int last_raised_to = 100;
+int last_lowered_to = 10;
 
 // Algorithm 
 int right_turns = 0;
-int target_right_turns = -1;
+int target_right_turns = 1;
 int left_turns = 0;
-int target_left_turns = -1;
+int target_left_turns = 1;
 
 void setup() 
 {
@@ -135,8 +139,11 @@ void setup()
   arm_right.attach(arm_right_pin);
   hand_left.attach(hand_left_pin);
   hand_right.attach(hand_right_pin);
-  raise_arm();
-  open_hand();
+  int degree = 0;
+  arm_right.write(degree);
+         arm_left.write(abs(180 - degree));
+//  raise_arm();
+//  open_hand();
   
   println("SETUP COMPLETED...");
 }
@@ -196,10 +203,22 @@ void loop()
         }
       } 
       else if (command == "kol kaldir") {
-        raise_arm();
+        while (!available()) {
+          //
+          delay(500);
+        }
+        command = readString();
+        int degree = command.toInt();
+        raise_arm(degree);
       }
       else if (command == "kol indir") {
-        lower_arm();
+        while (!available()) {
+          //
+          delay(500);
+        }
+        command = readString();
+        int degree = command.toInt();
+        lower_arm(degree);
       }
       else if (command == "el ac") {
         open_hand();
@@ -209,6 +228,14 @@ void loop()
       }
       else if (command == "kutu al") {
         box_pickup_routine();
+      }
+      else if (command == "kol test") {
+        for (int i = 0; i<3; i++) {
+//          lower_arm();
+//          delay(750);
+//          raise_arm();
+//           delay(750);
+        }
       }
       else if (command == "hizlan") {
         if (currentSpeed == yavas) {
@@ -224,8 +251,46 @@ void loop()
           currentSpeed = normal;
         }
       }
+      else if (command == "tam sag") {
+        linefollow_turn_right_routine();
+      }
+      else if (command == "tam sol") {
+        linefollow_turn_left_routine();
+      }
       else if (command == "robot durum") {
         printStatus();
+      }
+      else if (command == "sayi kol") {
+        // 0 - 90 arasi olacak
+        while (!available()) {
+          //
+          delay(500);
+        }
+        command = readString();
+        
+         /*
+          * Sag 180 olunca asagi 0 olunca yukari
+          * 
+          * 
+          * 
+          */
+      } else if (command == "sayi el") {
+        // 0 - 90
+        while (!available()) {
+          //
+          delay(500);
+        }
+        command = readString();
+        int degree = command.toInt();
+        int x = 180 - degree;
+        hand_right.write(x);
+        hand_left.write(degree);
+         /*
+          * Sag 180 olunca asagi 0 olunca yukari
+          * 
+          * 
+          * 
+          */
       }
       else 
       {
@@ -270,7 +335,7 @@ void loop()
       digitalWrite(ultrasound_right_trig, HIGH);
       delayMicroseconds(10);
       digitalWrite(ultrasound_right_trig, LOW);
-      ultrasound_right_duration = pulseIn(ultrasound_right_echo, HIGH); 
+      ultrasound_right_duration = pulseIn(ultrasound_right_echo, HIGH); // LOW______HIGH----(t)------LOW____ This function returns the time t 
       ultrasound_right_distance = ultrasound_right_duration / 29 / 2;
       if(ultrasound_right_duration == 0)
       {
@@ -282,7 +347,7 @@ void loop()
         if (ultrasound_right_distance > 1250) 
         { 
           ultrasound_right_distance = ULTRASOUND_DISTANCE_MIN; 
-        }
+        } // If the result is bugged set it to min (it is bugged at below 3cm)
         print(ultrasound_right_distance);
         println(" cm");
       }
@@ -293,7 +358,7 @@ void loop()
       digitalWrite(ultrasound_left_trig, HIGH);
       delayMicroseconds(10);
       digitalWrite(ultrasound_left_trig, LOW);
-      ultrasound_left_duration = pulseIn(ultrasound_left_echo, HIGH);
+      ultrasound_left_duration = pulseIn(ultrasound_left_echo, HIGH); // LOW______HIGH----(t)------LOW____ This function returns the time t 
       ultrasound_left_distance = ultrasound_left_duration / 29 / 2;
       if(ultrasound_left_duration == 0)
       {
@@ -305,26 +370,31 @@ void loop()
         if (ultrasound_left_distance > 1250) 
         { 
           ultrasound_left_distance = ULTRASOUND_DISTANCE_MIN; 
-        }
+        } // If the result is bugged set it to min (it is bugged at below 3cm)
         print(ultrasound_left_distance);
         println(" cm");
       }
     }
-
+    
 
     if (linefollower_enabled) 
     {
       infrared_values[0] = analogRead(irA1); // RIGHT
-      infrared_values[1] = analogRead(irA2); // RIGHT
-      infrared_values[2] = analogRead(irA3); // RIGHT
-      infrared_values[3] = analogRead(irA4); // MIDDLE
-      infrared_values[4] = analogRead(irA5); // MIDDLE
-      infrared_values[5] = analogRead(irA6); // LEFT
-      infrared_values[6] = analogRead(irA7); // LEFT
+      infrared_values[1] = analogRead(irA2);
+      infrared_values[2] = analogRead(irA3);
+      infrared_values[3] = analogRead(irA4);
+      infrared_values[4] = analogRead(irA5);
+      infrared_values[5] = analogRead(irA6);
+      infrared_values[6] = analogRead(irA7);
       infrared_values[7] = analogRead(irA8); // LEFT
+      println("");
       for (int i = 7; i>=0; i--) 
       {
-        if (infrared_values[i] < INFRARED_REFERENCE) 
+        debugPrint(i);
+        debugPrint(": ");
+        debugPrint(infrared_values[i]);
+        debugPrint("\n");
+        if (infrared_values[i] > INFRARED_REFERENCE) 
         {
           line_detected[i] = true;
         } 
@@ -332,33 +402,252 @@ void loop()
         {
           line_detected[i] = false;
         }
-      }   
-      
-      if (line_detected[0] && line_detected[1] && line_detected[2]) {
-        right_detected = true;
+      }  
+      #if DEBUG
+      for (int i = 7; i >=0; i--) {
+        if (line_detected[i]) 
+        {          
+          debugPrint(i);
+          debugPrint(" ");
+        } 
+        else 
+        {
+          debugPrint("  ");
+        }  
       }
+      #endif
+      println(" ");
       if (line_detected[3] && line_detected[4]) {
-        middle_detected = true;
-      }
-      if (line_detected[5] && line_detected[6] && line_detected[7]) {
-        left_detected = true;
-      }
-
-      if (!left_detected && !middle_detected && !right_detected) {
-        currentMovement = stopped;
+           if (line_detected[0] && line_detected[1] && line_detected[2]) {
+              // Saga donus var
+              currentMovement = stopped;
+           } else if (line_detected[5] && line_detected[6] && line_detected[7]) {
+              // Sola donus var
+              currentMovement = stopped;
+           } else if (line_detected[2]) {
+              // 2 istemiyoruz -> hafif sol
+              int coefficient = 10;
+            for (int i = 0; i<coefficient; i++) {
+              digitalWrite(in1, HIGH);
+              digitalWrite(in2, LOW);
+              digitalWrite(in3, LOW);
+              digitalWrite(in4,  HIGH);
+              
+              if (currentSpeed == yavas) {
+              delay(5);
+              } else if (currentSpeed == normal) {
+              delay(10);
+              } else if (currentSpeed == hizli) {
+              delay(18);
+              }
+              
+              digitalWrite(in1, LOW);
+              digitalWrite(in2, LOW);  
+              digitalWrite(in3, LOW);
+              digitalWrite(in4, LOW);
+                 
+              delay(DELAY_MS);
+              }
+           } else if (line_detected[5]) {
+              // 5 istemiyoruz -> hafif sag
+              int coefficient = 10;
+            for (int i = 0; i<coefficient; i++) {
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, HIGH);
+                digitalWrite(in3, HIGH);
+                digitalWrite(in4, LOW); 
+                
+                if (currentSpeed == yavas) {
+                delay(5);
+                } else if (currentSpeed == normal) {
+                delay(10);
+                } else if (currentSpeed == hizli) {
+                delay(18);
+                }
+                
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, LOW);  
+                digitalWrite(in3, LOW);
+                digitalWrite(in4, LOW);
+                delay(DELAY_MS);
+              }
+           } else {
+            currentMovement = going_forward;
+           }
       } else {
-        // Something is detected
-        if (middle_detected && right_detected) {
-          // Turn right with respect to the algorithm
-          linefollow_turn_right_conditional();
-        } else if (middle_detected && left_detected) {
-          // Turn left with respect to the algorithm
-          linefollow_turn_left_conditional();
-        } else if (middle_detected) {
-          // Just go forward
-          currentMovement = going_forward;
+        if (line_detected[3] && line_detected[2]) {
+          int coefficient = 20;
+          for (int i = 0; i<coefficient; i++) {
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, HIGH);
+                digitalWrite(in3, HIGH);
+                digitalWrite(in4, LOW); 
+                
+                if (currentSpeed == yavas) {
+                delay(5);
+                } else if (currentSpeed == normal) {
+                delay(10);
+                } else if (currentSpeed == hizli) {
+                delay(18);
+                }
+                
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, LOW);  
+                digitalWrite(in3, LOW);
+                digitalWrite(in4, LOW);
+                delay(DELAY_MS);
+              }
+        } else if (line_detected[4] && line_detected[5]) {
+          int coefficient = 20;
+          for (int i = 0; i<coefficient; i++) {
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, HIGH);
+                digitalWrite(in3, HIGH);
+                digitalWrite(in4, LOW); 
+                
+                if (currentSpeed == yavas) {
+                delay(5);
+                } else if (currentSpeed == normal) {
+                delay(10);
+                } else if (currentSpeed == hizli) {
+                delay(18);
+                }
+                
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, LOW);  
+                digitalWrite(in3, LOW);
+                digitalWrite(in4, LOW);
+                delay(DELAY_MS);
+              }
         }
       }
+      
+      
+      
+      
+      /*
+      
+      if (line_detected[3] && line_detected[4]) {
+        print(" 3 4 ");
+         if (line_detected[0] && line_detected[1]) {
+          print(" 0 - 1 ");
+            linefollow_turn_right_conditional();
+         } else if (line_detected[6] && line_detected[7]) {
+          print(" 6 - 7 ");
+            linefollow_turn_left_conditional();
+         } else {
+            currentMovement = going_forward;  
+         }
+         
+      } else {
+         
+         if (line_detected[2] && line_detected[3]) {
+            // Sag don hafif, ortala
+            print(" 2 - 3 ");
+            int coefficient = 10;
+            for (int i = 0; i<coefficient; i++) {
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, HIGH);
+                digitalWrite(in3, HIGH);
+                digitalWrite(in4, LOW); 
+                
+                if (currentSpeed == yavas) {
+                delay(5);
+                } else if (currentSpeed == normal) {
+                delay(10);
+                } else if (currentSpeed == hizli) {
+                delay(18);
+                }
+                
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, LOW);  
+                digitalWrite(in3, LOW);
+                digitalWrite(in4, LOW);
+                delay(DELAY_MS);
+            }
+         
+         } else if (line_detected[4] && line_detected[5]) {
+            // Sola don hafif, ortala
+            print("4 - 5");
+            int coefficient = 10;
+            for (int i = 0; i<coefficient; i++) {
+              digitalWrite(in1, HIGH);
+              digitalWrite(in2, LOW);
+              digitalWrite(in3, LOW);
+              digitalWrite(in4,  HIGH);
+              
+              if (currentSpeed == yavas) {
+              delay(5);
+              } else if (currentSpeed == normal) {
+              delay(10);
+              } else if (currentSpeed == hizli) {
+              delay(18);
+              }
+              
+              digitalWrite(in1, LOW);
+              digitalWrite(in2, LOW);  
+              digitalWrite(in3, LOW);
+              digitalWrite(in4, LOW);
+                 
+              delay(DELAY_MS);
+            }  
+         }  else {
+          if (line_detected[3]) {
+          // Az sag
+          print(" 3 ");
+            int coefficient = 5;
+            for (int i = 0; i<coefficient; i++) {
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, HIGH);
+                digitalWrite(in3, HIGH);
+                digitalWrite(in4, LOW); 
+                
+                if (currentSpeed == yavas) {
+                delay(5);
+                } else if (currentSpeed == normal) {
+                delay(10);
+                } else if (currentSpeed == hizli) {
+                delay(18);
+                }
+                
+                digitalWrite(in1, LOW);
+                digitalWrite(in2, LOW);  
+                digitalWrite(in3, LOW);
+                digitalWrite(in4, LOW);
+                delay(DELAY_MS);
+            }
+        } else if (line_detected[4]) {
+          // Az sol
+          print(" 3 ");
+            int coefficient = 5;
+            for (int i = 0; i<coefficient; i++) {
+                digitalWrite(in1, HIGH);
+              digitalWrite(in2, LOW);
+              digitalWrite(in3, LOW);
+              digitalWrite(in4,  HIGH);
+              
+              if (currentSpeed == yavas) {
+              delay(5);
+              } else if (currentSpeed == normal) {
+              delay(10);
+              } else if (currentSpeed == hizli) {
+              delay(18);
+              }
+              
+              digitalWrite(in1, LOW);
+              digitalWrite(in2, LOW);  
+              digitalWrite(in3, LOW);
+              digitalWrite(in4, LOW);
+
+                 delay(DELAY_MS);
+            }
+        } else {
+          currentMovement = stopped;
+        }
+           
+        }
+      }
+      */
   }
   movementRoutine(); // Should run every loop()
   delay(DELAY_MS);
@@ -389,6 +678,12 @@ void linefollow_turn_right_routine() {
      * Robot bu esnade infrared ile ORTA ve SAG taraftan sinyal almakta
      * Bu rutin sonunda robot SAGA donmus ve sadece ORTA taraftan sinyal almakta olmalidir 
      */
+     
+     currentMovement = turning_right;
+     for (int i = 0; i<500; i++) {
+        movementRoutine(); // Should run every loop()
+        delay(DELAY_MS);
+     }
 }
 
 void linefollow_turn_left_routine() {
@@ -396,6 +691,13 @@ void linefollow_turn_left_routine() {
      * Robot bu esnada infrared ile ORTA ve SOL taraftan sinyal almakta
      * Bu rutin sonunda robot SOLA donmus ve sadece ORTA taraftan sinyal almakta olmalidir
      */
+     currentMovement = turning_left;
+     for (int i = 0; i<500; i++) {
+        movementRoutine(); // Should run every loop()
+        delay(DELAY_MS);
+     }
+      
+    
 }
 
 void linefollow_turn_full_routine() {
@@ -403,6 +705,38 @@ void linefollow_turn_full_routine() {
      * Robot bu esnada kutuyu almis bulunmakta
      * Bu rutin sonunda kutu tasir halde iken 180* donmus ve sadece ORTA taraftan sinyal almakta olmaldir
      */
+}
+
+void linefollow_turn_90_right() {
+    int rightCoefficient = 100;
+    for (int i = 0; i<rightCoefficient; i++) {
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+      digitalWrite(in3, HIGH);
+      digitalWrite(in4, LOW); 
+      delay(30);
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, LOW);  
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, LOW);
+      delay(DELAY_MS); 
+    }
+}
+
+void linefollow_turn_90_left() {
+  int leftCoefficient = 100;
+    for (int i = 0; i<leftCoefficient; i++) {
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      digitalWrite(in3, LOW);
+      digitalWrite(in4,  HIGH);
+      delay(30);
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, LOW);  
+      digitalWrite(in3, LOW);
+      digitalWrite(in4, LOW);
+    }
+    
 }
 
 void movementRoutine() {
@@ -520,44 +854,48 @@ void open_hand() {
   hand_left.write(0); // Initail 0
 }
 
-void lower_arm() {
-  arm_right.write(30); // Initiail 10
-  arm_left.write(150); // Initial 170
-  
+void lower_arm(int degree) {
+//  arm_right.write(15); // Initiail 10
+//  arm_left.write(170); // Initial 170
+
+        for (int i = last_raised_to; i>=degree; i--) {
+            int x = 180 - degree;
+            arm_left.write(x);
+            arm_right.write(degree);  
+            delay(5);
+        }
+        last_lowered_to = degree;
+        
 }
 
-void raise_arm() {
+void raise_arm(int degree) {
   arm_right.write(170); // Initial 10
-  arm_left.write(10); // Initial 170
-}
+  arm_left.write(15); // Initial 170
 
-void turn_right(int value) {
-  wheelsTurn(value, 1, value, 2);
-}
-
-void turn_left(int value) {
-  wheelsTurn(value, 2, value, 1);
-}
-
-void go_forward(int value) {
-  wheelsTurn(value, 1, value, 1);
-}
-
-void go_backward(int value) {
-  wheelsTurn(value, 2, value, 2);
+ for (int i = last_lowered_to; i<=degree; i++) {
+            int x = 180 - degree;
+            arm_left.write(x);
+            arm_right.write(degree);  
+            delay(5);
+        }
+        last_raised_to = degree;
 }
 
 void box_pickup_routine() {
-  lower_arm();
-  delay(1500);
-  close_hand();
-  delay(1500);
-  raise_arm();
-  delay(1500);  
+  // Set initial
+//  raise_arm();
+//  open_hand();
+  // Routine
+//  lower_arm();
+//  delay(1500);
+//  close_hand();
+//  delay(1500);
+//  raise_arm();
+//  delay(1500);  
 }
 
 void box_drop_routine(int shelf) {
-  /*
+  /* 
    * Kutuyu rafa birakma rutini
    * 
    * 
@@ -619,4 +957,20 @@ void stop()
     analogWrite(enB, 0); 
     digitalWrite(in3, LOW);
     digitalWrite(in4, LOW); 
+}
+
+void turn_right(int value) {
+  wheelsTurn(value, 1, value, 2);
+}
+
+void turn_left(int value) {
+  wheelsTurn(value, 2, value, 1);
+}
+
+void go_forward(int value) {
+  wheelsTurn(value, 1, value, 1);
+}
+
+void go_backward(int value) {
+  wheelsTurn(value, 2, value, 2);
 }
