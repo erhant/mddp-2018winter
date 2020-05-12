@@ -1,5 +1,5 @@
 # mddp-2019winter
-Multi Disciplinary Design Project - 2019 Winter Semester
+Multi Disciplinary Design Project - 2019 Winter Semester, Yıldız Technical University
 
 This project requires a group of students composed from at least 4 disciplines (Computer Engineering, Electronics & Communication, Control & Automation, Electrical Engineering) to build a robot designed to solve a logistic problem.
 
